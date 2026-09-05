@@ -39,6 +39,22 @@ namespace eft_dma_radar.Silk.UI.Panels
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Render rate of the ESP window (0 = unlimited).\nIndependent of the radar FPS.");
 
+            ImGui.SeparatorText("Box Alignment");
+
+            ImGui.SetNextItemWidth(200);
+            float headOffset = Config.EspBoxHeadOffset;
+            if (ImGui.SliderFloat("Box Top Offset", ref headOffset, -0.5f, 0.5f, "%.2f m"))
+                Config.EspBoxHeadOffset = headOffset;
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Raises the top of the ESP box above the head bone.\nIncrease if the box starts at the shoulders.");
+
+            ImGui.SetNextItemWidth(200);
+            float feetOffset = Config.EspBoxFeetOffset;
+            if (ImGui.SliderFloat("Box Bottom Offset", ref feetOffset, -0.5f, 0.5f, "%.2f m"))
+                Config.EspBoxFeetOffset = feetOffset;
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Raises the bottom of the ESP box from the ankle bones.\nIncrease if the box hangs below the feet.");
+
             ImGui.SeparatorText("Players");
 
             bool showPlayers = Config.EspShowPlayers;

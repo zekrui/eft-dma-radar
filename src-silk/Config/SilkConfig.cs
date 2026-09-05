@@ -380,6 +380,18 @@ namespace eft_dma_radar.Silk.Config
         /// <summary>Whether the ESP window is borderless-fullscreen. Toggled in-window with F11.</summary>
         public bool EspFullscreen { get; set; } = false;
 
+        /// <summary>
+        /// World-space metres to raise the top of the ESP box above the head bone, which sits
+        /// at the base of the skull rather than the crown. Positive moves the top edge up.
+        /// </summary>
+        public float EspBoxHeadOffset { get; set; } = 0.22f;
+
+        /// <summary>
+        /// World-space metres to raise the bottom of the ESP box from the ankle bones toward
+        /// the soles. Positive moves the bottom edge up.
+        /// </summary>
+        public float EspBoxFeetOffset { get; set; } = 0.10f;
+
         /// <summary>Target FPS for the ESP window (independent of the radar FPS).</summary>
         public int EspTargetFps { get; set; } = 144;
 
@@ -766,6 +778,8 @@ namespace eft_dma_radar.Silk.Config
             EspCrosshairType = Math.Clamp(EspCrosshairType, 0, 5);
             EspCrosshairScale = Math.Clamp(EspCrosshairScale, 0.5f, 5f);
             EspTargetFps = Math.Clamp(EspTargetFps, 0, 360);
+            EspBoxHeadOffset = Math.Clamp(EspBoxHeadOffset, -0.5f, 0.5f);
+            EspBoxFeetOffset = Math.Clamp(EspBoxFeetOffset, -0.5f, 0.5f);
 
             LootMinPrice = Math.Max(LootMinPrice, 0);
             LootImportantPrice = Math.Max(LootImportantPrice, 0);
