@@ -22,6 +22,12 @@ namespace eft_dma_radar.Silk.UI.Panels
                 Config.ShowEspWidget = eft_dma_radar.Silk.UI.ESP.EspWindow.IsOpen;
             }
 
+            bool espFullscreen = Config.EspFullscreen;
+            if (ImGui.Checkbox("Fullscreen (Borderless)", ref espFullscreen))
+                eft_dma_radar.Silk.UI.ESP.EspWindow.SetFullscreen(espFullscreen);
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Hide the ESP window title bar and fill the monitor.\nToggle from the ESP window with F11 (Esc exits).");
+
             ImGui.SetNextItemWidth(200);
             int espFps = Config.EspTargetFps;
             string espFpsLabel = espFps == 0 ? "Unlimited" : $"{espFps}";

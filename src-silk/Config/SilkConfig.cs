@@ -377,6 +377,9 @@ namespace eft_dma_radar.Silk.Config
         /// <summary>Show FPS counter in the top-left of the ESP window.</summary>
         public bool EspShowFps { get; set; } = true;
 
+        /// <summary>Whether the ESP window is borderless-fullscreen. Toggled in-window with F11.</summary>
+        public bool EspFullscreen { get; set; } = false;
+
         /// <summary>Target FPS for the ESP window (independent of the radar FPS).</summary>
         public int EspTargetFps { get; set; } = 144;
 

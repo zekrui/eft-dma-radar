@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using eft_dma_radar.Silk.Tarkov.GameWorld.Player;
 using eft_dma_radar.Silk.Tarkov.Unity;
+using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
@@ -25,7 +26,19 @@ namespace eft_dma_radar.Silk.UI.ESP
         private static SKSurface? _skSurface;
         private static GRBackendRenderTarget? _skBackendRenderTarget;
         private static Thread? _thread;
+        private static IInputContext? _input;
         private static volatile bool _running;
+
+        // Borderless-fullscreen state (F11). Window mutations must happen on the ESP
+        // thread, so the UI thread only raises a request that OnRender drains.
+        // 0 = nothing pending, 1 = enter fullscreen, 2 = exit fullscreen.
+        private static volatile int _pendingFullscreen;
+        private static bool _isFullscreen;
+        private static bool _hasPreFullscreen;
+        private static WindowBorder _preFullscreenBorder = WindowBorder.Resizable;
+        private static WindowState _preFullscreenState = WindowState.Normal;
+        private static Vector2D<int> _preFullscreenSize;
+        private static Vector2D<int> _preFullscreenPosition;
 
         // FPS tracking
         private static int _fpsCounter;
@@ -53,6 +66,9 @@ namespace eft_dma_radar.Silk.UI.ESP
 
         /// <summary>Whether the ESP window is currently open and rendering.</summary>
         public static bool IsOpen => _running && _window is not null;
+
+        /// <summary>Whether the ESP window is currently borderless-fullscreen.</summary>
+        public static bool IsFullscreen => _isFullscreen;
 
         private static SilkConfig Config => SilkProgram.Config;
 
@@ -122,6 +138,10 @@ namespace eft_dma_radar.Silk.UI.ESP
                 options.WindowBorder = WindowBorder.Resizable;
 
                 _window = SilkWindow.Create(options);
+
+                // Restore the saved fullscreen state on the first frame
+                _pendingFullscreen = Config.EspFullscreen ? 1 : 0;
+
                 _window.Load += OnLoad;
                 _window.Render += OnRender;
                 _window.Resize += OnResize;
@@ -169,6 +189,18 @@ namespace eft_dma_radar.Silk.UI.ESP
 
                 _gl.ClearColor(0f, 0f, 0f, 1f);
 
+                // Keyboard input: F11 toggles borderless fullscreen, Escape leaves it
+                try
+                {
+                    _input = _window!.CreateInput();
+                    foreach (var keyboard in _input.Keyboards)
+                        keyboard.KeyDown += OnKeyDown;
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteLine($"[EspWindow] Input init failed (F11 unavailable): {ex.Message}");
+                }
+
                 CreateSkiaSurface();
                 if (_skSurface is null)
                 {
@@ -195,6 +227,8 @@ namespace eft_dma_radar.Silk.UI.ESP
         private static void OnClosing()
         {
             _running = false;
+            try { _input?.Dispose(); } catch { }
+            _input = null;
             _skSurface?.Dispose();
             _skBackendRenderTarget?.Dispose();
             _grContext?.Dispose();
@@ -256,6 +290,9 @@ namespace eft_dma_radar.Silk.UI.ESP
 
         private static void OnRender(double delta)
         {
+            // Drain F11 / settings fullscreen requests on the owning thread
+            ApplyPendingFullscreen();
+
             if (_grContext is null || _skSurface is null || _gl is null)
                 return;
 
@@ -851,6 +888,104 @@ namespace eft_dma_radar.Silk.UI.ESP
         {
             Config.EspRenderMode = (Config.EspRenderMode + 1) % 4;
             Config.MarkDirty();
+        }
+
+        /// <summary>
+        /// Requests borderless fullscreen on/off. Safe to call from any thread - the
+        /// actual window mutation is deferred to the ESP render thread.
+        /// </summary>
+        public static void SetFullscreen(bool fullscreen)
+        {
+            Config.EspFullscreen = fullscreen;
+            Config.MarkDirty();
+
+            if (_window is null)
+                return;
+
+            _pendingFullscreen = fullscreen ? 1 : 2;
+        }
+
+        /// <summary>Flips borderless fullscreen on/off.</summary>
+        public static void ToggleFullscreen() => SetFullscreen(!_isFullscreen);
+
+        private static void OnKeyDown(IKeyboard keyboard, Key key, int scancode)
+        {
+            if (key == Key.F11)
+                ToggleFullscreen();
+            else if (key == Key.Escape && _isFullscreen)
+                SetFullscreen(false);
+        }
+
+        /// <summary>
+        /// Drains a pending fullscreen request. MUST run on the ESP window thread -
+        /// GLFW window operations are not safe to call from elsewhere.
+        /// </summary>
+        private static void ApplyPendingFullscreen()
+        {
+            int pending = _pendingFullscreen;
+            if (pending == 0)
+                return;
+            _pendingFullscreen = 0;
+
+            var window = _window;
+            if (window is null)
+                return;
+
+            try
+            {
+                if (pending == 1)
+                {
+                    if (_isFullscreen)
+                        return;
+
+                    _preFullscreenBorder = window.WindowBorder;
+                    _preFullscreenState = window.WindowState;
+                    _preFullscreenSize = window.Size;
+                    _preFullscreenPosition = window.Position;
+                    _hasPreFullscreen = true;
+
+                    // Borderless rather than exclusive fullscreen: the ESP window sits over
+                    // the game on a screen fuser, so it must not take over the display mode.
+                    window.WindowState = WindowState.Normal;
+                    window.WindowBorder = WindowBorder.Hidden;
+
+                    var bounds = window.Monitor?.Bounds;
+                    if (bounds.HasValue)
+                    {
+                        window.Position = bounds.Value.Origin;
+                        window.Size = bounds.Value.Size;
+                    }
+                    else
+                    {
+                        window.WindowState = WindowState.Fullscreen;
+                    }
+
+                    _isFullscreen = true;
+                    Log.WriteLine("[EspWindow] Fullscreen ON");
+                }
+                else
+                {
+                    if (!_isFullscreen)
+                        return;
+
+                    window.WindowBorder = _preFullscreenBorder;
+                    window.WindowState = _preFullscreenState == WindowState.Fullscreen
+                        ? WindowState.Normal
+                        : _preFullscreenState;
+
+                    if (_preFullscreenSize.X > 0 && _preFullscreenSize.Y > 0)
+                        window.Size = _preFullscreenSize;
+                    if (_hasPreFullscreen)
+                        window.Position = _preFullscreenPosition;
+
+                    _isFullscreen = false;
+                    Log.WriteLine("[EspWindow] Fullscreen OFF");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLine($"[EspWindow] Fullscreen toggle failed: {ex.Message}");
+            }
         }
 
         /// <summary>
