@@ -47,6 +47,10 @@ namespace eft_dma_radar.Silk.UI.ESP
 
         // Player standing height offset (feet → head) in world units (fallback only)
         private const float PlayerHeight = 1.8f;
+        // Bones.HumanHead is the head JOINT (base of skull), not the crown, so a box
+        // drawn straight to it starts at the shoulders. Lift the top by the joint-to-
+        // crown distance in world units so the correction scales with distance.
+        private const float HeadCrownOffset = 0.22f;
         // Box aspect ratio (width = height / ratio) — matches WPF Skeleton.GetESPBox
         private const float BoxAspectRatio = 2.05f;
         // Health bar width (viewport pixels)
@@ -504,6 +508,10 @@ namespace eft_dma_radar.Silk.UI.ESP
                 headWorld = eyePos;
                 feetWorld = new Vector3(eyePos.X, eyePos.Y - PlayerHeight, eyePos.Z);
             }
+
+            // Raise the head point from the head joint to the top of the skull. Done after
+            // the sanity check so the plausibility margin still measures the real skeleton.
+            headWorld.Y += HeadCrownOffset;
 
             // Snap BTR passengers (turret operator / "scav on top") to the BTR's own XZ
             // so the ESP box/bones stop jittering relative to the moving vehicle.
