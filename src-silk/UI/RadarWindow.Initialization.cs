@@ -24,7 +24,15 @@ namespace eft_dma_radar.Silk.UI
             options.PreferredStencilBufferBits = 8;
             options.PreferredBitDepth = new Vector4D<int>(8, 8, 8, 8);
 
-            if (Config.WindowMaximized)
+            if (Config.WindowFullscreen)
+            {
+                // Seed the restore target so F11/Escape returns to the last windowed geometry
+                _preFullscreenSize = new Vector2D<int>(Config.WindowWidth, Config.WindowHeight);
+                _preFullscreenState = Config.WindowMaximized ? WindowState.Maximized : WindowState.Normal;
+                _isFullscreen = true;
+                options.WindowState = WindowState.Fullscreen;
+            }
+            else if (Config.WindowMaximized)
                 options.WindowState = WindowState.Maximized;
 
             Log.WriteLine($"[RadarWindow] Creating window: {options.Size.X}x{options.Size.Y}, FPS={options.FramesPerSecond}, API={options.API}");

@@ -215,6 +215,9 @@ namespace eft_dma_radar.Silk.Config
         /// <summary>Whether the radar window starts maximized.</summary>
         public bool WindowMaximized { get; set; } = false;
 
+        /// <summary>Whether the radar window starts in fullscreen. Toggled at runtime with F11.</summary>
+        public bool WindowFullscreen { get; set; } = false;
+
         /// <summary>Hide loot and other clutter; show only players.</summary>
         public bool BattleMode { get; set; } = false;
 

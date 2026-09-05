@@ -2,6 +2,7 @@ using eft_dma_radar.Silk.Tarkov;
 using eft_dma_radar.Silk.UI.Panels;
 using ImGuiNET;
 using Silk.NET.Input;
+using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using Silk.NET.OpenGL.Extensions.ImGui;
 using Silk.NET.Windowing;
@@ -31,6 +32,13 @@ namespace eft_dma_radar.Silk.UI
         private static GRContext _grContext = null!;
         private static GRBackendRenderTarget _skBackendRenderTarget = null!;
         private static ImGuiController _imgui = null!;
+
+        // Fullscreen state (F11). The pre-fullscreen geometry is kept so exiting restores it.
+        private static bool _isFullscreen;
+        private static bool _preFullscreenHasPosition;
+        private static WindowState _preFullscreenState = WindowState.Normal;
+        private static Vector2D<int> _preFullscreenSize;
+        private static Vector2D<int> _preFullscreenPosition;
 
         // FPS tracking
         private static int _fpsCounter;

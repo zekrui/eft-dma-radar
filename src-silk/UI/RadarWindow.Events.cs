@@ -7,6 +7,48 @@ namespace eft_dma_radar.Silk.UI
 {
     internal static partial class RadarWindow
     {
+        /// <summary>True while the radar window is in fullscreen (F11).</summary>
+        internal static bool IsFullscreen => _isFullscreen;
+
+        /// <summary>
+        /// Put the radar window into fullscreen, or restore the geometry it had beforehand.
+        /// Bound to F11; Escape also exits fullscreen.
+        /// </summary>
+        internal static void SetFullscreen(bool fullscreen)
+        {
+            if (_window is null || fullscreen == _isFullscreen)
+                return;
+
+            if (fullscreen)
+            {
+                _preFullscreenState = _window.WindowState;
+                _preFullscreenSize = _window.Size;
+                _preFullscreenPosition = _window.Position;
+                _preFullscreenHasPosition = true;
+                _window.WindowState = WindowState.Fullscreen;
+                _isFullscreen = true;
+            }
+            else
+            {
+                _window.WindowState = _preFullscreenState == WindowState.Fullscreen
+                    ? WindowState.Normal
+                    : _preFullscreenState;
+
+                if (_window.WindowState == WindowState.Normal)
+                {
+                    if (_preFullscreenSize.X > 0 && _preFullscreenSize.Y > 0)
+                        _window.Size = _preFullscreenSize;
+                    if (_preFullscreenHasPosition)
+                        _window.Position = _preFullscreenPosition;
+                }
+
+                _isFullscreen = false;
+            }
+        }
+
+        /// <summary>Flip fullscreen on/off.</summary>
+        internal static void ToggleFullscreen() => SetFullscreen(!_isFullscreen);
+
         private static void OnResize(Vector2D<int> size)
         {
             _gl.Viewport(size);
@@ -16,9 +58,13 @@ namespace eft_dma_radar.Silk.UI
         private static void OnClosing()
         {
             // Persist window state
-            Config.WindowWidth = _window.Size.X;
-            Config.WindowHeight = _window.Size.Y;
-            Config.WindowMaximized = _window.WindowState == WindowState.Maximized;
+            // While fullscreen the live geometry is the monitor's, so persist the windowed values instead
+            var savedSize = _isFullscreen ? _preFullscreenSize : _window.Size;
+            var savedState = _isFullscreen ? _preFullscreenState : _window.WindowState;
+            Config.WindowWidth = savedSize.X;
+            Config.WindowHeight = savedSize.Y;
+            Config.WindowMaximized = savedState == WindowState.Maximized;
+            Config.WindowFullscreen = _isFullscreen;
 
             // Persist widget/panel visibility
             Config.ShowPlayersWidget = PlayerInfoWidget.IsOpen;

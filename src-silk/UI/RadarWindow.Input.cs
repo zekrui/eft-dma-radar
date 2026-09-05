@@ -191,6 +191,13 @@ namespace eft_dma_radar.Silk.UI
                 return;
             }
 
+            // F11 toggles fullscreen -- global, same as F8
+            if (key == Key.F11)
+            {
+                ToggleFullscreen();
+                return;
+            }
+
             // Don't handle shortcuts when ImGui text inputs have focus
             if (ImGui.GetIO().WantCaptureKeyboard)
                 return;
@@ -227,6 +234,11 @@ namespace eft_dma_radar.Silk.UI
                     QuestPanel.IsOpen = !QuestPanel.IsOpen;
                     break;
                 case Key.Escape:
+                    if (_isFullscreen)
+                    {
+                        SetFullscreen(false);
+                        break;
+                    }
                     SettingsPanel.IsOpen = false;
                     LootFiltersPanel.IsOpen = false;
                     HotkeyManagerPanel.IsOpen = false;

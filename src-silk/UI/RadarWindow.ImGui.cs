@@ -68,6 +68,13 @@ namespace eft_dma_radar.Silk.UI
             // ── View menu — radar display toggles ─────────────────────────
             if (ImGui.BeginMenu("View"))
             {
+                if (ImGui.MenuItem("⛶ Fullscreen", "F11", _isFullscreen))
+                    ToggleFullscreen();
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Fullscreen the radar window -- F11 or Esc to exit");
+
+                ImGui.Separator();
+
                 // Mode
                 bool battleMode = Config.BattleMode;
                 if (ImGui.MenuItem("\u2694 Battle Mode", "B", battleMode))
