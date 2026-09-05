@@ -145,6 +145,7 @@ namespace eft_dma_radar.Silk.UI.ESP
                 _window.Load += OnLoad;
                 _window.Render += OnRender;
                 _window.Resize += OnResize;
+                _window.Move += OnMove;
                 _window.Closing += OnClosing;
 
                 _window.Run();
@@ -917,6 +918,79 @@ namespace eft_dma_radar.Silk.UI.ESP
         }
 
         /// <summary>
+        /// Bounds of the monitor the window currently sits on, chosen by window centre.
+        /// <see cref="IWindow.Monitor"/> is not reliable after the window is moved, so
+        /// the monitor list is searched directly.
+        /// </summary>
+        private static Rectangle<int>? GetCurrentMonitorBounds(IWindow window)
+        {
+            try
+            {
+                var centre = new Vector2D<int>(
+                    window.Position.X + (window.Size.X / 2),
+                    window.Position.Y + (window.Size.Y / 2));
+
+                foreach (var monitor in Silk.NET.Windowing.Monitor.GetMonitors(window))
+                {
+                    var b = monitor.Bounds;
+                    if (centre.X >= b.Origin.X && centre.X < b.Origin.X + b.Size.X &&
+                        centre.Y >= b.Origin.Y && centre.Y < b.Origin.Y + b.Size.Y)
+                        return b;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.WriteLine($"[EspWindow] Monitor enumeration failed: {ex.Message}");
+            }
+
+            return window.Monitor?.Bounds;
+        }
+
+        /// <summary>
+        /// Fills the current monitor. Returns false if no monitor bounds could be resolved.
+        /// </summary>
+        private static bool SnapToMonitor(IWindow window)
+        {
+            var bounds = GetCurrentMonitorBounds(window);
+            if (!bounds.HasValue)
+                return false;
+
+            var origin = bounds.Value.Origin;
+            var size = bounds.Value.Size;
+
+            if (window.Position != origin)
+                window.Position = origin;
+            if (window.Size != size)
+                window.Size = size;
+
+            Log.WriteLine($"[EspWindow] Snapped to monitor {size.X}x{size.Y} @ {origin.X},{origin.Y}");
+            return true;
+        }
+
+        /// <summary>
+        /// Re-snaps to the new monitor when a fullscreen window is dragged or thrown
+        /// across displays (Win+Shift+Arrow keeps the old size otherwise).
+        /// </summary>
+        private static void OnMove(Vector2D<int> position)
+        {
+            if (!_isFullscreen)
+                return;
+
+            var window = _window;
+            if (window is null)
+                return;
+
+            var bounds = GetCurrentMonitorBounds(window);
+            if (!bounds.HasValue)
+                return;
+
+            // Only request a re-snap when geometry actually disagrees, otherwise the
+            // Position write below would re-enter this handler forever.
+            if (window.Position != bounds.Value.Origin || window.Size != bounds.Value.Size)
+                _pendingFullscreen = 1;
+        }
+
+        /// <summary>
         /// Drains a pending fullscreen request. MUST run on the ESP window thread -
         /// GLFW window operations are not safe to call from elsewhere.
         /// </summary>
@@ -935,8 +1009,14 @@ namespace eft_dma_radar.Silk.UI.ESP
             {
                 if (pending == 1)
                 {
+                    // Already fullscreen: this is a re-snap request (the window moved to
+                    // another monitor), so resize to the new screen without clobbering
+                    // the saved windowed geometry.
                     if (_isFullscreen)
+                    {
+                        SnapToMonitor(window);
                         return;
+                    }
 
                     _preFullscreenBorder = window.WindowBorder;
                     _preFullscreenState = window.WindowState;
@@ -949,16 +1029,8 @@ namespace eft_dma_radar.Silk.UI.ESP
                     window.WindowState = WindowState.Normal;
                     window.WindowBorder = WindowBorder.Hidden;
 
-                    var bounds = window.Monitor?.Bounds;
-                    if (bounds.HasValue)
-                    {
-                        window.Position = bounds.Value.Origin;
-                        window.Size = bounds.Value.Size;
-                    }
-                    else
-                    {
+                    if (!SnapToMonitor(window))
                         window.WindowState = WindowState.Fullscreen;
-                    }
 
                     _isFullscreen = true;
                     Log.WriteLine("[EspWindow] Fullscreen ON");
