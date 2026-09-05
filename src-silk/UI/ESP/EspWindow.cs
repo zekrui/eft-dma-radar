@@ -939,7 +939,7 @@ namespace eft_dma_radar.Silk.UI.ESP
                     window.Position.X + (window.Size.X / 2),
                     window.Position.Y + (window.Size.Y / 2));
 
-                foreach (var monitor in Silk.NET.Windowing.Monitor.GetMonitors(window))
+                foreach (var monitor in global::Silk.NET.Windowing.Monitor.GetMonitors(window))
                 {
                     var b = monitor.Bounds;
                     if (centre.X >= b.Origin.X && centre.X < b.Origin.X + b.Size.X &&
